@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Build files
+build/
+dist/
+*.spec
+
+# Temporary files
+*.log
+chat_*.txt
+
+# Git portable installer
+PortableGit-*.7z.exe
+
+# Trae IDE files
+.trae/
