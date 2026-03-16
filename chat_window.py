@@ -433,27 +433,40 @@ class ChatWindow:
         """保存聊天记录到文件"""
         def save_in_background():
             try:
-                # 首先读取现有文件内容，以保留完整历史
-                existing_content = []
-                try:
-                    with open(self.chat_file_path, 'r', encoding='utf-8') as f:
-                        existing_content = f.readlines()
-                except FileNotFoundError:
-                    # 文件不存在，创建新文件
-                    pass
-                
-                # 合并现有内容和当前聊天历史
-                # 去重，避免重复消息
-                all_messages = set()
-                for line in existing_content:
-                    all_messages.add(line.strip())
-                for msg in self.chat_history:
-                    all_messages.add(msg)
-                
-                # 写入完整的聊天历史
-                with open(self.chat_file_path, 'w', encoding='utf-8') as f:
-                    for msg in all_messages:
-                        f.write(msg + '\n')
+                # 直接追加新消息到文件
+                # 每次只保存最后一条消息，确保所有消息都被保存
+                if self.chat_history:
+                    last_message = self.chat_history[-1]
+                    # 检查文件是否存在
+                    file_exists = False
+                    try:
+                        with open(self.chat_file_path, 'r', encoding='utf-8') as f:
+                            file_exists = True
+                    except FileNotFoundError:
+                        pass
+                    
+                    # 以追加模式打开文件
+                    with open(self.chat_file_path, 'a', encoding='utf-8') as f:
+                        # 如果文件是新创建的，写入所有历史消息
+                        if not file_exists:
+                            for msg in self.chat_history:
+                                f.write(msg + '\n')
+                        else:
+                            # 检查最后一条消息是否已经在文件中
+                            message_exists = False
+                            try:
+                                with open(self.chat_file_path, 'r', encoding='utf-8') as rf:
+                                    lines = rf.readlines()
+                                    for line in lines:
+                                        if line.strip() == last_message:
+                                            message_exists = True
+                                            break
+                            except:
+                                pass
+                            
+                            # 如果消息不存在，追加写入
+                            if not message_exists:
+                                f.write(last_message + '\n')
             except Exception as e:
                 print(f"保存聊天记录失败: {e}")
         
