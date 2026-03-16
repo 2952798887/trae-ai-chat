@@ -38,7 +38,6 @@ class AIChatClient:
                     try:
                         data = json.loads(event.data)
                         if data.get("event") == "message":
-                            print(data.get("answer"), end="", flush=True)
                             full_answer += data.get("answer", "")
                         elif data.get("event") == "message_end":
                             print()

@@ -31,6 +31,9 @@ class ChatWindow:
         self.is_running = False
         self.current_user_index = 0
         self.after_id = None
+        self.is_concurrent_running = False
+        self.concurrent_after_id = None
+        self.last_admin_message = "admin:大家先进行自我介绍"
         
         # 文件保存相关变量
         self.chat_file_path = ""
@@ -63,8 +66,21 @@ class ChatWindow:
         
     def init_chat_area(self):
         """初始化对话框区域"""
+        # 字体大小调整按钮框架
+        self.font_frame = ttk.Frame(self.chat_frame)
+        self.font_frame.pack(fill=tk.X, pady=(0, 5))
+        
+        # 字体大小调整按钮
+        self.font_up_button = ttk.Button(self.font_frame, text="放大字体", command=self.increase_font_size)
+        self.font_up_button.pack(side=tk.RIGHT, padx=(5, 0))
+        self.font_down_button = ttk.Button(self.font_frame, text="缩小字体", command=self.decrease_font_size)
+        self.font_down_button.pack(side=tk.RIGHT, padx=(5, 5))
+        
         # 聊天内容区域
-        self.chat_text = tk.Text(self.chat_frame, wrap=tk.WORD, state=tk.DISABLED)
+        self.font_size = 10  # 默认字体大小
+        self.chat_text = tk.Text(self.chat_frame, wrap=tk.WORD, state=tk.DISABLED, font=("Arial", self.font_size))
+        # 添加发送者名字的样式
+        self.chat_text.tag_config("sender", font=("Arial", self.font_size, "bold"), foreground="blue")
         self.chat_text.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
         
         # 输入区域
@@ -115,6 +131,10 @@ class ChatWindow:
         self.start_button = ttk.Button(self.control_frame, text="开始轮训", command=self.start_loop)
         self.start_button.pack(side=tk.LEFT, padx=(0, 10))
         
+        # 开始并发按钮
+        self.start_concurrent_button = ttk.Button(self.control_frame, text="开始轮询（并发）", command=self.start_concurrent_loop)
+        self.start_concurrent_button.pack(side=tk.LEFT, padx=(0, 10))
+        
         # 暂停按钮
         self.pause_button = ttk.Button(self.control_frame, text="暂停轮训", command=self.pause_loop, state=tk.DISABLED)
         self.pause_button.pack(side=tk.LEFT, padx=(0, 10))
@@ -122,6 +142,8 @@ class ChatWindow:
         # 停止按钮
         self.stop_button = ttk.Button(self.control_frame, text="停止轮训", command=self.stop_loop, state=tk.DISABLED)
         self.stop_button.pack(side=tk.LEFT, padx=(0, 10))
+        
+
     
     def start_loop(self):
         """开始轮训"""
@@ -135,6 +157,15 @@ class ChatWindow:
             # self.current_user_index = 0
             self.run_loop()
     
+    def start_concurrent_loop(self):
+        """开始并发轮询"""
+        if not self.is_concurrent_running:
+            self.is_concurrent_running = True
+            self.start_concurrent_button.config(state=tk.DISABLED)
+            self.pause_button.config(state=tk.NORMAL)
+            self.stop_button.config(state=tk.NORMAL)
+            self.run_concurrent_loop()
+    
     def pause_loop(self):
         """暂停轮训"""
         if self.is_running:
@@ -143,15 +174,26 @@ class ChatWindow:
                 self.root.after_cancel(self.after_id)
                 self.after_id = None
             self.start_button.config(state=tk.NORMAL)
-            self.pause_button.config(state=tk.DISABLED)
+        if self.is_concurrent_running:
+            self.is_concurrent_running = False
+            if self.concurrent_after_id:
+                self.root.after_cancel(self.concurrent_after_id)
+                self.concurrent_after_id = None
+            self.start_concurrent_button.config(state=tk.NORMAL)
+        self.pause_button.config(state=tk.DISABLED)
     
     def stop_loop(self):
         """停止轮训"""
         self.is_running = False
+        self.is_concurrent_running = False
         if self.after_id:
             self.root.after_cancel(self.after_id)
             self.after_id = None
+        if self.concurrent_after_id:
+            self.root.after_cancel(self.concurrent_after_id)
+            self.concurrent_after_id = None
         self.start_button.config(state=tk.NORMAL)
+        self.start_concurrent_button.config(state=tk.NORMAL)
         self.pause_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.DISABLED)
         self.current_user_index = 0
@@ -236,7 +278,7 @@ class ChatWindow:
             result = self.ai_client.send_message(
                 query=query,
                 user=current_user,
-                response_mode="blocking",
+                response_mode="streaming",
                 conversation_id=user_conversation_id
             )
             
@@ -259,11 +301,110 @@ class ChatWindow:
         thread.daemon = True
         thread.start()
     
+    def run_concurrent_loop(self):
+        """运行并发轮询"""
+        if not self.is_concurrent_running:
+            return
+        
+        user_count = self.user_list.size()
+        if user_count < 2:
+            self.stop_loop()
+            self.display_message("系统", "AI用户列表至少需要2个用户才能开始轮询")
+            return
+        
+        all_users = [self.user_list.get(i) for i in range(user_count)]
+        completed_count = 0
+        lock = threading.Lock()
+        
+        def worker(user):
+            nonlocal completed_count
+            try:
+                query = self.build_context_for_user(user)
+                print(f"\n=== 输入给 {user} 的内容 ===")
+                print(query)
+                print("====================================")
+                
+                user_conversation_id = self.conversation_ids.get(user, "")
+                result = self.ai_client.send_message(
+                    query=query,
+                    user=user,
+                    response_mode="streaming",
+                    conversation_id=user_conversation_id
+                )
+                
+                if result:
+                    with lock:
+                        self.conversation_ids[user] = result.get("conversation_id")
+                        answer = result.get("actual_answer", "")
+                    self.root.after(0, lambda u=user, a=answer: self.display_message(u, a))
+            except Exception as e:
+                print(f"AI用户 {user} 处理失败: {e}")
+            finally:
+                with lock:
+                    completed_count += 1
+                    if completed_count >= user_count:
+                        self.root.after(1000, self.run_concurrent_loop)
+        
+        for user in all_users:
+            thread = threading.Thread(target=worker, args=(user,))
+            thread.daemon = True
+            thread.start()
+    
+    def build_context_for_user(self, current_user):
+        """构建上下文字符串
+        
+        Args:
+            current_user: 当前AI用户的名称
+            
+        Returns:
+            由其他AI用户最后发言 + （如果有）admin当前轮发言组成的查询字符串
+        """
+        user_count = self.user_list.size()
+        if user_count <= 0:
+            return ""
+        
+        all_users = [self.user_list.get(i) for i in range(user_count)]
+        
+        recent_history = []
+        user_last_message = {}
+        admin_in_current_round = False
+        
+        # 检查当前轮是否有admin发言 - 简单逻辑：如果最后一条消息是admin的，就认为当前轮有admin发言
+        if self.chat_history:
+            last_message = self.chat_history[-1]
+            if last_message.startswith("admin:"):
+                admin_in_current_round = True
+        
+        for msg in reversed(self.chat_history):
+            if ":" in msg:
+                sender = msg.split(":", 1)[0].strip()
+                # 只包含其他AI用户的发言
+                if sender in all_users and sender != current_user and sender not in user_last_message:
+                    user_last_message[sender] = msg
+                    recent_history.insert(0, msg)
+                # 只在当前轮有admin发言时才包含admin的消息
+                elif sender == "admin" and sender not in user_last_message and admin_in_current_round:
+                    user_last_message[sender] = msg
+                    recent_history.insert(0, msg)
+            
+            if len(user_last_message) >= (len(all_users) - 1) + (1 if admin_in_current_round else 0):
+                break
+        
+        if recent_history:
+            query = "\n".join([msg.rstrip() for msg in recent_history])
+        else:
+            # 刚开始时，发送初始消息
+            query = "admin:大家介绍一下自己"
+        
+        return query
+    
     def send_message(self):
         """发送用户消息"""
         # 获取输入框中的文本
         message = self.input_text.get(1.0, tk.END).strip()
         if message:
+            # 更新最后一条admin消息
+            self.last_admin_message = f"admin: {message}"
             # 以admin身份显示消息
             self.display_message("admin", message)
             # 清空输入框
@@ -317,9 +458,31 @@ class ChatWindow:
         
         # 显示到聊天窗口
         self.chat_text.config(state=tk.NORMAL)
-        self.chat_text.insert(tk.END, f"{sender}: {message}\n\n")
+        # 先插入发送者名字并应用样式
+        self.chat_text.insert(tk.END, f"{sender}: ", "sender")
+        # 再插入消息内容
+        self.chat_text.insert(tk.END, f"{message}\n\n")
         self.chat_text.config(state=tk.DISABLED)
         self.chat_text.see(tk.END)
+    
+    def increase_font_size(self):
+        """放大字体"""
+        if self.font_size < 20:  # 设置最大字体大小
+            self.font_size += 1
+            self.update_font_size()
+    
+    def decrease_font_size(self):
+        """缩小字体"""
+        if self.font_size > 6:  # 设置最小字体大小
+            self.font_size -= 1
+            self.update_font_size()
+    
+    def update_font_size(self):
+        """更新字体大小"""
+        # 更新发送者标签的字体大小
+        self.chat_text.tag_config("sender", font=("Arial", self.font_size, "bold"), foreground="blue")
+        # 更新整个文本的字体大小
+        self.chat_text.config(font=("Arial", self.font_size))
         
 if __name__ == "__main__":
     root = tk.Tk()
