@@ -369,11 +369,17 @@ class ChatWindow:
         user_last_message = {}
         admin_in_current_round = False
         
-        # 检查当前轮是否有admin发言 - 简单逻辑：如果最后一条消息是admin的，就认为当前轮有admin发言
+        # 检查当前轮是否有admin发言 - 检查最后AI数量+1条消息
         if self.chat_history:
-            last_message = self.chat_history[-1]
-            if last_message.startswith("admin:"):
-                admin_in_current_round = True
+            # 确定需要检查的消息数量：AI用户数量 + 1（可能的admin发言）
+            check_count = user_count + 1
+            # 获取最后check_count条消息
+            recent_messages = self.chat_history[-check_count:]
+            # 检查这些消息中是否有admin的发言
+            for msg in recent_messages:
+                if msg.startswith("admin:"):
+                    admin_in_current_round = True
+                    break
         
         for msg in reversed(self.chat_history):
             if ":" in msg:
