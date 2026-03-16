@@ -76,12 +76,25 @@ class ChatWindow:
         self.font_down_button = ttk.Button(self.font_frame, text="缩小字体", command=self.decrease_font_size)
         self.font_down_button.pack(side=tk.RIGHT, padx=(5, 5))
         
-        # 聊天内容区域
+        # 聊天内容区域（带滚动条）
         self.font_size = 10  # 默认字体大小
-        self.chat_text = tk.Text(self.chat_frame, wrap=tk.WORD, state=tk.DISABLED, font=("Arial", self.font_size))
+        
+        # 创建滚动条框架
+        self.chat_scroll_frame = ttk.Frame(self.chat_frame)
+        self.chat_scroll_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        
+        # 创建滚动条
+        self.chat_scrollbar = ttk.Scrollbar(self.chat_scroll_frame, orient=tk.VERTICAL)
+        self.chat_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # 创建文本框并关联滚动条
+        self.chat_text = tk.Text(self.chat_scroll_frame, wrap=tk.WORD, state=tk.DISABLED, 
+                               font=("Arial", self.font_size), yscrollcommand=self.chat_scrollbar.set)
+        self.chat_scrollbar.config(command=self.chat_text.yview)
+        
         # 添加发送者名字的样式
         self.chat_text.tag_config("sender", font=("Arial", self.font_size, "bold"), foreground="blue")
-        self.chat_text.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
+        self.chat_text.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         
         # 输入区域
         self.input_frame = ttk.Frame(self.chat_frame)
@@ -420,27 +433,31 @@ class ChatWindow:
         """保存聊天记录到文件"""
         def save_in_background():
             try:
-                # 首先读取现有文件内容，以保留完整历史
-                existing_content = []
-                try:
-                    with open(self.chat_file_path, 'r', encoding='utf-8') as f:
-                        existing_content = f.readlines()
-                except FileNotFoundError:
-                    # 文件不存在，创建新文件
-                    pass
-                
-                # 合并现有内容和当前聊天历史
-                # 去重，避免重复消息
-                all_messages = set()
-                for line in existing_content:
-                    all_messages.add(line.strip())
-                for msg in self.chat_history:
-                    all_messages.add(msg)
-                
-                # 写入完整的聊天历史
-                with open(self.chat_file_path, 'w', encoding='utf-8') as f:
-                    for msg in all_messages:
-                        f.write(msg + '\n')
+                # 直接追加新消息到文件，而不是重新写入整个文件
+                # 这样可以保留所有历史消息
+                with open(self.chat_file_path, 'a', encoding='utf-8') as f:
+                    # 检查文件是否为空
+                    f.seek(0, 2)  # 移动到文件末尾
+                    if f.tell() == 0:
+                        # 文件为空，写入所有历史消息
+                        for msg in self.chat_history:
+                            f.write(msg + '\n')
+                    else:
+                        # 文件不为空，只写入最后一条消息
+                        if self.chat_history:
+                            last_message = self.chat_history[-1]
+                            # 检查最后一条消息是否已经在文件中
+                            # 先读取文件的最后几行进行检查
+                            try:
+                                with open(self.chat_file_path, 'r', encoding='utf-8') as rf:
+                                    lines = rf.readlines()
+                                    if lines and lines[-1].strip() == last_message:
+                                        # 最后一条消息已经存在，不需要重复写入
+                                        return
+                            except:
+                                pass
+                            # 写入最后一条消息
+                            f.write(last_message + '\n')
             except Exception as e:
                 print(f"保存聊天记录失败: {e}")
         
