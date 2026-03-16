@@ -16,6 +16,7 @@
 - 支持多轮对话和上下文保持
 
 **使用方法**：
+
 ```bash
 python api_client.py
 ```
@@ -30,6 +31,7 @@ python api_client.py
 - 提供`get_last_ai_response()`方法获取最后一次AI回复
 
 **使用方法**：
+
 ```bash
 python ai_chat.py
 ```
@@ -43,6 +45,7 @@ python ai_chat.py
 - 可被其他Python文件导入使用
 
 **使用方法**：
+
 ```python
 from ai_response_extractor import extract_ai_response
 
@@ -58,23 +61,25 @@ actual_response = extract_ai_response(ai_reply)
 - 左侧为对话框区域，右侧为AI用户列表
 - 支持点击添加AI用户，自动生成唯一用户ID
 - 实现AI用户的无限轮训功能，将上一个AI的回复作为输入传递给下一个AI
-- **新增并发轮询功能**：所有AI用户同时进行对话，提高效率
+- **并发轮询功能**：所有AI用户同时进行对话，提高效率
 - 提供轮训控制按钮（开始、开始并发、暂停、停止）
 - 支持管理员发送消息功能，以"admin"身份在对话中插入消息
-- **新增字体大小调整**：可通过按钮放大或缩小字体，适应不同屏幕
-- **新增滚动条支持**：聊天内容超过窗口时自动显示滚动条
-- **新增消息样式**：发送者名字以蓝色粗体显示，提高可读性
+- **字体大小调整**：可通过按钮放大或缩小字体，适应不同屏幕
+- **滚动条支持**：聊天内容超过窗口时自动显示滚动条
+- **消息样式**：发送者名字以蓝色粗体显示，提高可读性
 - 实现对话持久化功能，自动将聊天记录保存到文本文件
 - 每次停止轮训后再开始时会新建一个聊天文件
 - 保持对话上下文的连贯性
 - 响应式布局，支持窗口大小调整
 
 **使用方法**：
+
 ```bash
 python chat_window.py
 ```
 
 **轮训功能使用步骤**：
+
 1. 点击"添加用户"按钮添加至少2个AI用户
 2. 选择轮训模式：
    - 点击"开始轮训"按钮开始AI之间的顺序对话（一个接一个）
@@ -83,6 +88,7 @@ python chat_window.py
 4. 可随时点击"暂停轮训"或"停止轮训"按钮控制轮训过程
 
 **管理员发送消息**：
+
 1. 在输入框中输入消息
 2. 点击"发送"按钮
 3. 消息将以"admin"身份显示在聊天窗口中
@@ -92,14 +98,16 @@ python chat_window.py
    - 如果当前轮没有admin发言，AI只会收到其他AI的发言，不会收到admin的历史发言
 
 **对话持久化**：
+
 - 聊天记录会自动保存到当前目录下的文本文件中
-- 文件名格式为"chat_YYYYMMDD_HHMMSS.txt"
+- 文件名格式为"chat\_YYYYMMDD\_HHMMSS.txt"
 - 每次停止轮训后再开始时会新建一个聊天文件
 - 暂停轮训后继续使用同一个文件
 - **保存机制**：使用追加模式保存，确保所有历史消息都被完整保存，不会丢失旧消息
 - **消息顺序**：消息按时间顺序保存，保持对话的连贯性
 
 **打包为可执行文件**：
+
 1. 安装PyInstaller：
    ```bash
    pip install pyinstaller
@@ -118,6 +126,7 @@ python chat_window.py
 - 用于安装项目依赖
 
 **使用方法**：
+
 ```bash
 pip install -r requirements.txt
 ```
@@ -144,15 +153,12 @@ USER_ID = "test_user_123"
    ```bash
    pip install -r requirements.txt
    ```
-
 2. **配置API密钥**：
    - 在各文件中更新`API_KEY`变量为你的实际API密钥
-
 3. **选择交互方式**：
    - 命令行交互：`python api_client.py`
    - AI直接交流：`python ai_chat.py`
    - GUI界面：`python chat_window.py`
-
 4. **开始对话**：
    - 输入你的问题，按回车键发送
    - 输入`exit`退出对话
@@ -161,7 +167,7 @@ USER_ID = "test_user_123"
 ## 注意事项
 
 - API密钥应妥善保管，避免泄露
-- 用户名（USER_ID）应保持唯一，用于标识不同用户
+- 用户名（USER\_ID）应保持唯一，用于标识不同用户
 - 流式响应模式需要安装`sseclient-py`包
 - GUI界面需要Python的tkinter库支持
 

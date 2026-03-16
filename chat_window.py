@@ -433,31 +433,27 @@ class ChatWindow:
         """保存聊天记录到文件"""
         def save_in_background():
             try:
-                # 直接追加新消息到文件，而不是重新写入整个文件
-                # 这样可以保留所有历史消息
-                with open(self.chat_file_path, 'a', encoding='utf-8') as f:
-                    # 检查文件是否为空
-                    f.seek(0, 2)  # 移动到文件末尾
-                    if f.tell() == 0:
-                        # 文件为空，写入所有历史消息
-                        for msg in self.chat_history:
-                            f.write(msg + '\n')
-                    else:
-                        # 文件不为空，只写入最后一条消息
-                        if self.chat_history:
-                            last_message = self.chat_history[-1]
-                            # 检查最后一条消息是否已经在文件中
-                            # 先读取文件的最后几行进行检查
-                            try:
-                                with open(self.chat_file_path, 'r', encoding='utf-8') as rf:
-                                    lines = rf.readlines()
-                                    if lines and lines[-1].strip() == last_message:
-                                        # 最后一条消息已经存在，不需要重复写入
-                                        return
-                            except:
-                                pass
-                            # 写入最后一条消息
-                            f.write(last_message + '\n')
+                # 首先读取现有文件内容，以保留完整历史
+                existing_content = []
+                try:
+                    with open(self.chat_file_path, 'r', encoding='utf-8') as f:
+                        existing_content = f.readlines()
+                except FileNotFoundError:
+                    # 文件不存在，创建新文件
+                    pass
+                
+                # 合并现有内容和当前聊天历史
+                # 去重，避免重复消息
+                all_messages = set()
+                for line in existing_content:
+                    all_messages.add(line.strip())
+                for msg in self.chat_history:
+                    all_messages.add(msg)
+                
+                # 写入完整的聊天历史
+                with open(self.chat_file_path, 'w', encoding='utf-8') as f:
+                    for msg in all_messages:
+                        f.write(msg + '\n')
             except Exception as e:
                 print(f"保存聊天记录失败: {e}")
         
